@@ -41,7 +41,7 @@ def test():
     assert peers['C2'] == set(['A2', 'B2', 'D2', 'E2', 'F2', 'G2', 'H2', 'I2',
                                'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9',
                                'A1', 'A3', 'B1', 'B3'])
-    print 'All tests pass.'
+    print ('All tests pass.')
 
 ################ Parse a Grid ################
 
@@ -85,6 +85,75 @@ def eliminate(values, s, d):
         d2 = values[s]
         if not all(eliminate(values, s2, d2) for s2 in peers[s]):
             return False
+    
+    #listPair = ['123456789']
+    for unitA in units[s][0]:
+        listValue = values[unitA]        
+        for unitB in units[s][0]:
+            if unitA != unitB :
+                for value in values[unitB]:
+                    if value in listValue :
+                        listValue = listValue.replace(value,'')
+        if len(listValue) == 1:
+            values[unitA] = listValue
+            #print("here")
+            #print(values[unitA])
+            
+                
+        #print(listPair)
+    ## (3) new heuristique 
+
+
+
+    
+    """
+    #if there is there only one candidate for a given row, column or box, but it is hidden among other candidates
+    #and there is only one place where it can be placed, then it must be placed there
+    
+    #hidden single
+    #too slow
+    for unit in units[s]:
+        for d in values[s]:
+            dplaces = [s for s in unit if d in values[s]]
+            if len(dplaces) == 0:
+                return False
+
+            elif len(dplaces) == 1:
+                if not assign(values, dplaces[0], d):
+                    return False
+    """
+    """
+    #naked pair
+    #too slow
+    for unit in units[s]:
+        for d in values[s]:
+            dplaces = [s for s in unit if d in values[s]]
+            if len(dplaces) == 2:
+                for d2 in values[s]:
+                    d2places = [s for s in unit if d2 in values[s]]
+                    if len(d2places) == 2:
+                        if dplaces[0] == d2places[0] and dplaces[1] == d2places[1]:
+                            for s in unit:
+                                if s != dplaces[0] and s != dplaces[1]:
+                                    values[s] = values[s].replace(d,'')
+                                    values[s] = values[s].replace(d2,'')
+
+
+        """
+
+
+    #implementation of locked candidates 1
+
+            
+                
+        #print(listPair)
+
+
+
+
+    #print(units[s],s)
+    #print(units[s][1],s)
+
     ## (2) If a unit u is reduced to only one place for a value d, then put it there.
     for u in units[s]:
         dplaces = [s for s in u if d in values[s]]
@@ -94,6 +163,13 @@ def eliminate(values, s, d):
             # d can only be in one place in unit; assign it there
             if not assign(values, dplaces[0], d):
                 return False
+
+
+
+    
+
+
+
     return values
 
 ################ Display as 2-D grid ################
@@ -103,10 +179,9 @@ def display(values):
     width = 1+max(len(values[s]) for s in squares)
     line = '+'.join(['-'*(width*3)]*3)
     for r in rows:
-        print ''.join(values[r+c].center(width)+('|' if c in '36' else '')
+        print (''.join(values[r+c].center(width)+('|' if c in '36' else ''))
                       for c in cols)
-        if r in 'CF': print line
-    print
+        if r in 'CF': print(line)
 
 ################ Search ################
 
@@ -120,12 +195,24 @@ def search(values):
         return values ## Solved!
     ## Chose the unfilled square s with the fewest possibilities
     n,s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
+
+
+    ##When 3rd criteria is desactivated, activate the following lines 
+    ##for pure depth search 
+    #s = random.choices(squares)[0]
+    #n,s = len(values[s]),s
+    #values[s] = '123456789'
+
+
+
+
     return some(search(assign(values.copy(), s, d))
-                for d in values[s])
+        for d in values[s])
 
 ################ Utilities ################
 
 def some(seq):
+    
     "Return some element of seq that is true."
     for e in seq:
         if e: return e
@@ -133,7 +220,7 @@ def some(seq):
 
 def from_file(filename, sep='\n'):
     "Parse a file into a list of strings, separated by sep."
-    return file(filename).read().strip().split(sep)
+    return open(filename).read().strip().split(sep)
 
 def shuffled(seq):
     "Return a randomly shuffled copy of the input sequence."
@@ -145,28 +232,31 @@ def shuffled(seq):
 
 import time, random
 
-def solve_all(grids, name='', showif=0.0):
+def solve_all(grids, name='', showif=0.0001):
     """Attempt to solve a sequence of grids. Report results.
     When showif is a number of seconds, display puzzles that take longer.
     When showif is None, don't display any puzzles."""
     def time_solve(grid):
-        start = time.clock()
+        start = time.process_time()
         values = solve(grid)
-        t = time.clock()-start
+        #print(values)
+        t = time.process_time()-start
         ## Display puzzles that take long enough
         if showif is not None and t > showif:
             display(grid_values(grid))
             if values: display(values)
-            print '(%.2f seconds)\n' % t
+            print ('(%.2f seconds)\n' % t)
         return (t, solved(values))
     times, results = zip(*[time_solve(grid) for grid in grids])
     N = len(grids)
     if N > 1:
-        print "Solved %d of %d %s puzzles (avg %.2f secs (%d Hz), max %.2f secs)." % (
-            sum(results), N, name, sum(times)/N, N/sum(times), max(times))
+        print ("Solved %d of %d %s puzzles (avg %.2f secs (%d Hz), max %.2f secs)." % (
+            sum(results), N, name, sum(times)/N, N/sum(times), max(times)))
 
 def solved(values):
     "A puzzle is solved if each unit is a permutation of the digits 1 to 9."
+    #print(values)
+    #print(grid_values)
     def unitsolved(unit): return set(values[s] for s in unit) == set(digits)
     return values is not False and all(unitsolved(unit) for unit in unitlist)
 
@@ -188,11 +278,21 @@ grid2  = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2...
 hard1  = '.....6....59.....82....8....45........3........6..3.54...325..6..................'
     
 if __name__ == '__main__':
-    test()
-    solve_all(from_file("easy50.txt", '========'), "easy", None)
-    solve_all(from_file("top95.txt"), "hard", None)
-    solve_all(from_file("hardest.txt"), "hardest", None)
-    solve_all([random_puzzle() for _ in range(99)], "random", 100.0)
+    #test()
+    solve_all(from_file("top95.txt"), "95sudoku", None)
+    #display solved grid
+
+   
+    #display unsolved grid
+    
+
+    #solve_all(from_file("100sudoku.txt"), "100sudoku", None)
+    #solve_all(from_file("1000sudoku.txt"), "1000sudoku", None)
+    # solve_all(from_file("easy50.txt", '========'), "easy", None)
+    # solve_all(from_file("easy50.txt", '========'), "easy", None)
+    # solve_all(from_file("top95.txt"), "hard", None)
+    # solve_all(from_file("hardest.txt"), "hardest", None)
+    # solve_all([random_puzzle() for _ in range(99)], "random", 100.0)
 
 ## References used:
 ## http://www.scanraid.com/BasicStrategies.htm
