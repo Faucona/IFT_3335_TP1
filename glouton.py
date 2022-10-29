@@ -73,7 +73,8 @@ def fill_square(grid):
                 while value in seen:
                     value = str(random.randint(1,9))
                 seen.append(value)
-                grid[square] = value
+                grid[square] = value + '!'
+                #we added '!' to differentiate the known values to the unknown
     return grid
 
 
@@ -87,39 +88,50 @@ def calculte_conflics(values):
     return conflicts
 
 
+def swap_values_in_quadrant(values, q):
+    squares = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'G1', 'G4', 'G7']
 
+    #get the unit of the quandrant q
+    quadrant = units[squares[q]][2]
 
-def hill_climbing(grid):
-    values = grid_values(grid)
-    conflicts = calculte_conflics(values)
-    while conflicts > 0:
-        #get a random square
-        square = random.choice(squares)
-        #get the unit of the square
-        unit = units[square][2]
-        #get the value of the square
-        value = values[square]
-        #get the peers of the square
-        peers = peers[square]
-        #get the values of the peers
-        peers_values = [values[peer] for peer in peers]
-        #get the possible values of the square
-        possible_values = [str(i) for i in range(1,10) if str(i) not in peers_values]
-        #get a random value from the possible values
-        new_value = random.choice(possible_values)
-        #update the value of the square
-        values[square] = new_value
-        #calculate the new conflicts
-        new_conflicts = calculte_conflics(values)
-        #if the new conflicts are greater than the old conflicts
-        if new_conflicts > conflicts:
-            #revert the changes
-            values[square] = value
-        conflicts = new_conflicts
+    #get random pair
+    swaped_items = random.sample(quadrant,2)
+    #make sure none is known value
+    while values[swaped_items[0]][-1] != '!' or values[swaped_items[1]][-1] != '!':
+        swaped_items = random.sample(quadrant,2)
+
+    #swap values
+    values[swaped_items[0]] , values[swaped_items[1]] = values[swaped_items[1]], values[swaped_items[0]]
     return values
 
 
+        
+
+
+
+
+
+def hill_climbing(values, nb_tries=10000):
+
+    nb_conflicts = calculte_conflics(values)
+    best_board, best_score = values, nb_conflicts
+
+    for _ in range(nb_tries):
+        #we found the solution
+        if best_score == 0:
+            break
+        
+        values = swap_values_in_quadrant(values, random.randint(0, 8))
+        nbconflicts = calculte_conflics(values)
+        
+        if nb_conflicts < best_score:
+            best_score = nb_conflicts
+            best_board = values
+
+    return best_board, best_score
+
     
+
 
 
 
@@ -128,14 +140,11 @@ def hill_climbing(grid):
 
 def display_grid(grid):
     squares = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'G1', 'G4', 'G7']
-    
-    for s in squares:
-        
+    for s in squares:    
         quadrant = units[s][2]
         print("############")
         for square in quadrant:
             print(grid[square])
-            
 
 
 
@@ -155,7 +164,7 @@ def display(values):
 def grid_values(grid):
     "Convert grid into a dict of {square: char} with '0' or '.' for empties."
     chars = [c for c in grid if c in digits or c in '0.']
-    assert len(chars) == 81
+    #assert len(chars) == 81
     return dict(zip(squares, chars))
 
 
@@ -241,9 +250,15 @@ hard1  = '.....6....59.....82....8....45........3........6..3.54...325..6.......
 if __name__ == '__main__':
 
     #display the grid 
-    grid = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
-    grid = fill_square(grid_values(grid))
+    grid = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
+    grid = grid_values(grid)
+    
+    grid = fill_square(grid)
+    
+    grid, nb_conflicts = hill_climbing(grid)
     display_grid(grid)
+    print(nb_conflicts)
+    
 
 
 
