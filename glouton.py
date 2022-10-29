@@ -48,7 +48,16 @@ def test():
 
 ################ Parse a Grid ################
 
+def grid_values(grid):
+    "Convert grid into a dict of {square: char} with '0' or '.' for empties."
+    chars = [c for c in grid if c in digits or c in '0.']
+    print(chars,len(chars))
+    print(grid)
+    print(digits)
+    assert len(chars) == 81
+    return dict(zip(squares, chars))
 
+################ Hill-Climbing ################
 
 #fill each 3x3 square by random number between 1 and 9 but no repetition within the square return grid
 def fill_square(grid):
@@ -77,7 +86,9 @@ def fill_square(grid):
     return grid
 
 
+
 def calculte_conflics(values):
+    #print("ffffffffff")
     conflicts = 0
     for unit in unitlist:
         for square in unit:
@@ -89,8 +100,15 @@ def calculte_conflics(values):
 
 
 
-def hill_climbing(grid):
-    values = grid_values(grid)
+def hill_climbing(grid,peers):
+
+    print("heeeeeeeeeeeeeeeeere")
+    print(grid)
+    #fill_square(grid)
+    values = fill_square(grid)#grid#grid_values(grid)
+    print("thereeeeeeee")
+    print(values)
+    #print(peers)
     conflicts = calculte_conflics(values)
     while conflicts > 0:
         #get a random square
@@ -100,12 +118,18 @@ def hill_climbing(grid):
         #get the value of the square
         value = values[square]
         #get the peers of the square
-        peers = peers[square]
+        #print(peers)
+        print("what")
+        #peers = peers[square]
         #get the values of the peers
-        peers_values = [values[peer] for peer in peers]
+        peers_values = [values[peer] for peer in peers[square]]
         #get the possible values of the square
         possible_values = [str(i) for i in range(1,10) if str(i) not in peers_values]
         #get a random value from the possible values
+        print(possible_values)
+        print(peers_values)
+        print(peers[square])
+        print(square)
         new_value = random.choice(possible_values)
         #update the value of the square
         values[square] = new_value
@@ -121,25 +145,76 @@ def hill_climbing(grid):
 
     
 
+################ Constraint Propagation ################
+
+def assign(values, s, d):
+    """Eliminate all the other values (except d) from values[s] and propagate.
+    Return values, except return False if a contradiction is detected."""
+    other_values = values[s].replace(d, '')
+    if all(eliminate(values, s, d2) for d2 in other_values):
+        return values
+    else:
+        return False
+
+def eliminate(values, s, d):
+    """Eliminate d from values[s]; propagate when values or places <= 2.
+    Return values, except return False if a contradiction is detected."""
+    if d not in values[s]:
+        return values ## Already eliminated
+    values[s] = values[s].replace(d,'')
+    ## (1) If a square s is reduced to one value d2, then eliminate d2 from the peers.
+    if len(values[s]) == 0:
+        return False ## Contradiction: removed last value
+    elif len(values[s]) == 1:
+        d2 = values[s]
+        if not all(eliminate(values, s2, d2) for s2 in peers[s]):
+            return False
+    
+    #listPair = ['123456789']
+    for unitA in units[s][0]:
+        listValue = values[unitA]        
+        for unitB in units[s][0]:
+            if unitA != unitB :
+                for value in values[unitB]:
+                    if value in listValue :
+                        listValue = listValue.replace(value,'')
+        if len(listValue) == 1:
+            values[unitA] = listValue
+            #print("here")
+            #print(values[unitA])
+            
+                
+
+    ## (2) If a unit u is reduced to only one place for a value d, then put it there.
+    for u in units[s]:
+        dplaces = [s for s in u if d in values[s]]
+        if len(dplaces) == 0:
+            return False ## Contradiction: no place for this value
+        elif len(dplaces) == 1:
+            # d can only be in one place in unit; assign it there
+            if not assign(values, dplaces[0], d):
+                return False
 
 
 
+    
 
+
+
+    return values
+
+
+################ Display as 2-D grid ################
 
 def display_grid(grid):
     squares = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'G1', 'G4', 'G7']
-    
     for s in squares:
         
         quadrant = units[s][2]
         print("############")
         for square in quadrant:
             print(grid[square])
-            
-
-
-
-
+        
 
 def display(values):
     "Display these values as a 2-D grid."
@@ -152,18 +227,34 @@ def display(values):
 
 
 
-def grid_values(grid):
-    "Convert grid into a dict of {square: char} with '0' or '.' for empties."
-    chars = [c for c in grid if c in digits or c in '0.']
-    assert len(chars) == 81
-    return dict(zip(squares, chars))
+
+################ Search ################
+
+def solve(grid): 
+    print("solve function")
+    return hill_climbing(fill_square(grid_values(grid)),peers)#search(parse_grid(grid))
+
+def search(values):
+    "Using depth-first search and propagation, try all possible values."
+    if values is False:
+        return False ## Failed earlier
+    if all(len(values[s]) == 1 for s in squares):
+        return values ## Solved!
+    ## Chose the unfilled square s with the fewest possibilities
+    n,s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
+
+
+    ##When 3rd criteria is desactivated, activate the following lines 
+    ##for pure depth search 
+    #s = random.choices(squares)[0]
+    #n,s = len(values[s]),s
+    #values[s] = '123456789'
 
 
 
 
-
-
-
+    return some(search(hill_climbing(values.copy(), s, d))
+        for d in values[s])
 
 
 
@@ -193,7 +284,7 @@ def shuffled(seq):
 
 import time, random
 
-def solve_all(grids, name='', showif=0.0001):
+def solve_all(grids, name='', showif=None):
     """Attempt to solve a sequence of grids. Report results.
     When showif is a number of seconds, display puzzles that take longer.
     When showif is None, don't display any puzzles."""
@@ -241,10 +332,10 @@ hard1  = '.....6....59.....82....8....45........3........6..3.54...325..6.......
 if __name__ == '__main__':
 
     #display the grid 
-    grid = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
-    grid = fill_square(grid_values(grid))
-    display_grid(grid)
-
+    #grid = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
+   # grid = fill_square(grid_values(grid))
+    #display_grid(grid)
+    solve_all(from_file("top95.txt"), "95sudoku", None)
 
 
 
