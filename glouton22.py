@@ -54,9 +54,10 @@ def test():
 def fill_square(grid):
     #grid is dict(zip(squares, chars))
     #get first group of squares
-    known_values = []
+
     squares = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'G1', 'G4', 'G7']
     for s in squares:
+        #print(squares)
         #get the unit of the square
         quadrant = units[s][2]
         seen = []
@@ -73,36 +74,55 @@ def fill_square(grid):
                 while value in seen:
                     value = str(random.randint(1,9))
                 seen.append(value)
-                grid[square] = value
-            else:
-                known_values.append(square)
-                #keep track of the known values (squares)
-    return grid, known_values
+                grid[square] = value + '!'
+                #we added '!' to differentiate the known values to the unknown
+    return grid
 
 
 def calculte_conflics(values):
     conflicts = 0
-    for unit in unitlist:
+    for unit in [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]:
         for square in unit:
             for peer in peers[square]:
-                if values[square] == values[peer]:
+                if values[square][0] == values[peer][0]:
                     conflicts += 1
     return conflicts
 
 
-def swap_values_in_quadrant(values, q, known_values):
+def swap_values_in_quadrant(values, q,best_board, best_score):
     squares = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'G1', 'G4', 'G7']
+
     #get the unit of the quandrant q
     quadrant = units[squares[q]][2]
 
+    for i in quadrant:
+        for j in quadrant:
+            if j != i and values[i][-1] == "!" and values[j][-1] == "!":
+                values[i] ,values[j] = values[j] ,values[i]
+                nbconflicts = calculte_conflics(values) 
+                if nbconflicts < best_score :
+                    #print(nbconflicts)
+                    return values,nbconflicts
+                else :
+                    values[i] ,values[j] = values[j] ,values[i]
+    #print("here")
+    #print(best_board == values)
+    return best_board,best_score
+
+                    #print(nbconflicts)
+                    #best_score = nbconflicts
+                    #best_board = values
+
+"""
     #get random pair
     swaped_items = random.sample(quadrant,2)
+
     #make sure none is known value
-    while swaped_items[0] not in known_values or swaped_items[1] not in known_values:
+    while values[swaped_items[0]][-1] != '!' or values[swaped_items[1]][-1] != '!':
         swaped_items = random.sample(quadrant,2)
     #swap values
     values[swaped_items[0]] , values[swaped_items[1]] = values[swaped_items[1]], values[swaped_items[0]]
-    return values
+    """
 
 
         
@@ -111,25 +131,42 @@ def swap_values_in_quadrant(values, q, known_values):
 
 
 
-def hill_climbing(values, known_values, nb_tries=100000):
+def hill_climbing(values, nb_tries=10):
 
     nb_conflicts = calculte_conflics(values)
     best_board, best_score = values, nb_conflicts
 
-    for i in range(nb_tries):
-        print('number of steps: ' + str(i))
+    changed = True
+    while changed :
+        changed = False
         #we found the solution
         if best_score == 0:
             break
-        
-        values = swap_values_in_quadrant(best_board, random.randint(0, 8), known_values)
-        nbconflicts = calculte_conflics(values)
-        
-        if nb_conflicts < best_score:
-            best_score = nb_conflicts
-            best_board = values
+        for i in range(9):
+            value, score = swap_values_in_quadrant(values, i,best_board, best_score)
+            if score < best_score:
+                #print(score,best_score)
+                best_score = score 
+                best_board = value
+                changed = True
+                #break
 
+            #nbconflicts = calculte_conflics(values)
     return best_board, best_score
+
+        #print(best_score, "best_score")
+        #print(nbconflicts, "conflicts")
+
+"""
+        if nbconflicts < best_score:
+            print(nbconflicts)
+            best_score = nbconflicts
+            best_board = values"""
+            #_ = 0
+        #else:
+            #values = best_board
+
+   # return best_board, best_score
 
     
 
@@ -209,7 +246,7 @@ def solve_all(grids, name='', showif=0.0001):
     When showif is None, don't display any puzzles."""
     def time_solve(grid):
         start = time.process_time()
-        values = solve(grid)
+        values = solve(grid_values(grid))
         #print(values)
         t = time.process_time()-start
         ## Display puzzles that take long enough
@@ -228,8 +265,12 @@ def solved(values):
     "A puzzle is solved if each unit is a permutation of the digits 1 to 9."
     #print(values)
     #print(grid_values)
-    def unitsolved(unit): return set(values[s] for s in unit) == set(digits)
+    def unitsolved(unit):
+        return set(values[s].replace("!","") for s in unit) == set(digits)
+    #return set(values[s].replace("!","") for s in unit) == set(digits)
     return values is not False and all(unitsolved(unit) for unit in unitlist)
+
+
 
 def random_puzzle(N=17):
     """Make a random puzzle with N or more assignments. Restart on contradictions.
@@ -246,9 +287,7 @@ def random_puzzle(N=17):
 
 ################ Search ################
 
-def solve(grid): 
-    grid, known_values = fill_square(grid_values(grid))
-    return hill_climbing(grid, known_values)[0]
+def solve(grid): return hill_climbing((fill_square(grid)))[0]
 
 grid1  = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
 grid2  = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
@@ -256,19 +295,16 @@ hard1  = '.....6....59.....82....8....45........3........6..3.54...325..6.......
     
 if __name__ == '__main__':
 
-    solve_all(from_file("100sudoku.txt"), "100sudoku", None)
     #display the grid 
-    """
-    grid = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
+    #grid = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
+    #grid = grid_values(grid)
+    #grid = '100sudoku.txt'
+    solve_all(from_file("100sudoku.txt"), "100sudoku", None)
+    ##grid = fill_square(grid)
     
- 
-    grid = grid_values(grid)
-    
-    grid, known_values = fill_square(grid)
-    
-    grid, nb_conflicts = hill_climbing(grid, known_values)
-    display_grid(grid)
-    print(nb_conflicts)"""
+    ##grid, nb_conflicts = hill_climbing(grid)
+    #display_grid(grid)
+    #print(nb_conflicts)
     
 
 
